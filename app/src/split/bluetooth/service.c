@@ -154,7 +154,7 @@ BT_GATT_SERVICE_DEFINE(
                            BT_GATT_CHRC_WRITE_WITHOUT_RESP, BT_GATT_PERM_WRITE_ENCRYPT, NULL,
                            split_svc_run_behavior, &behavior_run_payload),
 
-#if IS_ENABLED(CONFIG_ZMK_BACKLIGHT)
+#if IS_ENABLED(CONFIG_ZMK_RGB_UNDERGLOW)
     BT_GATT_CHARACTERISTIC(BT_UUID_DECLARE_128(ZMK_SPLIT_BT_CHAR_UPDATE_LED_UUID),
                            BT_GATT_CHRC_WRITE_WITHOUT_RESP, BT_GATT_PERM_WRITE_ENCRYPT, NULL,
                            split_svc_update_led, &update_led_data),
