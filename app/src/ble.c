@@ -106,6 +106,10 @@ bool zmk_ble_active_profile_is_open() {
     return !bt_addr_le_cmp(&profiles[active_profile].peer, BT_ADDR_LE_ANY);
 }
 
+#if IS_ENABLED(CONFIG_ZMK_HANDLE_BLE_DISCONNECTION)
+bool ble_seeking_connection() { return active_profile_seeking_connection; }
+#endif
+
 void set_profile_address(uint8_t index, const bt_addr_le_t *addr) {
     char setting_name[15];
     char addr_str[BT_ADDR_LE_STR_LEN];

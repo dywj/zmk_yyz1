@@ -84,8 +84,14 @@ static struct rgb_underglow_state state;
 static struct zmk_periph_led led_data;
 
 #if IS_ENABLED(CONFIG_ZMK_SPLIT_BLE)
-static bool last_ble_state[2];
-#endif
+
+static bool last_ble_state[3];
+
+#if IS_ENABLED(CONFIG_ZMK_BLE_INDICATOR_AUTO_OFF)
+bool reset_auto_off_counter = true;
+#endif /* CONFIG_ZMK_BLE_INDICATOR_AUTO_OFF */
+
+#endif /* CONFIG_ZMK_SPLIT_BLE */
 
 static bool triggered;
 
@@ -261,6 +267,9 @@ static void zmk_rgb_underglow_effect_kinesis() {
     }
     // blink second led slowly if bluetooth not paired, quickly if not connected
     if (zmk_ble_active_profile_is_open()) {
+#if IS_ENABLED(CONFIG_ZMK_BLE_INDICATOR_AUTO_OFF)
+        reset_auto_off_counter = true;
+#endif
         pixels[1].r = pixels[1].r * last_ble_state[0];
         pixels[1].g = pixels[1].g * last_ble_state[0];
         pixels[1].b = pixels[1].b * last_ble_state[0];
@@ -270,6 +279,27 @@ static void zmk_rgb_underglow_effect_kinesis() {
         }
         state.animation_step++;
     } else if (!zmk_ble_active_profile_is_connected()) {
+#if IS_ENABLED(CONFIG_ZMK_BLE_INDICATOR_AUTO_OFF)
+        reset_auto_off_counter = true;
+#endif
+
+#if IS_ENABLED(CONFIG_ZMK_HANDLE_BLE_DISCONNECTION)
+        /* only blink the led when BLE is advertising for connection */
+        if (ble_seeking_connection()) {
+            pixels[1].r = pixels[1].r * last_ble_state[1];
+            pixels[1].g = pixels[1].g * last_ble_state[1];
+            pixels[1].b = pixels[1].b * last_ble_state[1];
+            if (state.animation_step > 14) {
+                last_ble_state[1] = !last_ble_state[1];
+                state.animation_step = 0;
+            }
+            state.animation_step++;
+        } else {
+            pixels[1].r = 0;
+            pixels[1].g = 0;
+            pixels[1].b = 0;
+        }
+#else  /* IS_ENABLED(CONFIG_ZMK_HANDLE_BLE_DISCONNECTION) */
         pixels[1].r = pixels[1].r * last_ble_state[1];
         pixels[1].g = pixels[1].g * last_ble_state[1];
         pixels[1].b = pixels[1].b * last_ble_state[1];
@@ -278,7 +308,29 @@ static void zmk_rgb_underglow_effect_kinesis() {
             state.animation_step = 0;
         }
         state.animation_step++;
+#endif /* IS_ENABLED(CONFIG_ZMK_HANDLE_BLE_DISCONNECTION) */
     }
+#if IS_ENABLED(CONFIG_ZMK_BLE_INDICATOR_AUTO_OFF)
+    else {                         // ble is connected
+        if (led_data.layer == 3) { // when mod key is pressed,
+                                   // show current BLE profile for few seconds and then off
+            reset_auto_off_counter = true;
+        }
+        if (reset_auto_off_counter) {
+            state.animation_step = 0;
+            last_ble_state[2] = true;
+            reset_auto_off_counter = false;
+        }
+        pixels[1].r = pixels[1].r * last_ble_state[2];
+        pixels[1].g = pixels[1].g * last_ble_state[2];
+        pixels[1].b = pixels[1].b * last_ble_state[2];
+        if (state.animation_step > 84) {
+            last_ble_state[2] = false;
+        } else {
+            state.animation_step++;
+        }
+    }
+#endif /* IS_ENABLED(CONFIG_ZMK_HANDLE_BLE_DISCONNECTION) */
     // set third led as layer state
     switch (led_data.layer) {
     case 0:
@@ -330,7 +382,7 @@ static void zmk_rgb_underglow_effect_kinesis() {
     if (old_led_data.layer != led_data.layer || old_led_data.indicators != led_data.indicators) {
         zmk_rgb_underglow_central_send();
     }
-#else
+#else /* ZMK_BLE_IS_CENTRAL */
 #if IS_ENABLED(CONFIG_ZMK_SPLIT_BLE)
     // leds for peripheral(right) side
     /* if (zmk_ble_active_profile_is_open()) {
@@ -431,7 +483,7 @@ static void zmk_rgb_underglow_effect_kinesis() {
 #if IS_ENABLED(CONFIG_ZMK_SPLIT_BLE)
     }
 #endif
-#endif
+#endif /* ZMK_BLE_IS_CENTRAL */
 }
 
 static void zmk_rgb_underglow_effect_test() {

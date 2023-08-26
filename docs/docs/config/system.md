@@ -78,8 +78,12 @@ for more information on configuring Bluetooth.
 | `CONFIG_ZMK_BLE_THREAD_STACK_SIZE`          | int  | Stack size of the BLE notify thread                                   | 512     |
 | `CONFIG_ZMK_BLE_PASSKEY_ENTRY`              | bool | Experimental: require typing passkey from host to pair BLE connection | n       |
 | `CONFIG_ZMK_HANDLE_BLE_DISCONNECTION`       | bool | Experimental: respect user BLE disconnection request from computer    | n       |
+| `CONFIG_ZMK_BLE_INDICATOR_AUTO_OFF`         | bool | Experimental (Adv360): only show BLE profile indicator when triggered | n       |
 
-Note that `CONFIG_BT_MAX_CONN` and `CONFIG_BT_MAX_PAIRED` should be set to the same value. On a split keyboard they should only be set for the central and must be set to one greater than the desired number of bluetooth profiles.
+Note:
+
+1. `CONFIG_BT_MAX_CONN` and `CONFIG_BT_MAX_PAIRED` should be set to the same value. On a split keyboard they should only be set for the central and must be set to one greater than the desired number of bluetooth profiles.
+2. When `CONFIG_ZMK_BLE_INDICATOR_AUTO_OFF=y`, the BLE indicator will automatically turn off when there is no Bluetooth related activity. It will also be triggered to show the current BLE profile number when the 'Mod' key is pressed on the Adv360.
 
 ### Logging
 

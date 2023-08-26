@@ -172,6 +172,10 @@ config ZMK_HANDLE_BLE_DISCONNECTION
     bool "Experimental: Respect user disconnection request from computer"
     default n
 
+config ZMK_BLE_INDICATOR_AUTO_OFF
+    bool "Experimental: automatically turn off BLE indicator"
+    default n
+
 config BT_PERIPHERAL_PREF_MIN_INT
     default 6
 
