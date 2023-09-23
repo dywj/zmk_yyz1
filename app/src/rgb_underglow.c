@@ -24,6 +24,7 @@
 #include <zmk/event_manager.h>
 #include <zmk/events/activity_state_changed.h>
 #include <zmk/events/usb_conn_state_changed.h>
+#include <zmk/workqueue.h>
 #include <zmk/events/hid_indicators_changed.h>
 #include <zmk/events/split_peripheral_status_changed.h>
 #include <zmk/hid_indicators.h>
@@ -36,7 +37,6 @@
 #else
 #include <zmk/split/bluetooth/peripheral.h>
 #endif
-#include <zmk/workqueue.h>
 
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
@@ -688,6 +688,7 @@ static int zmk_rgb_underglow_init(const struct device *_arg) {
 #endif
 
     zmk_rgb_underglow_save_state();
+    k_work_submit_to_queue(zmk_workqueue_lowprio_work_q(), &underglow_tick_work);
     zmk_rgb_underglow_off();
     if (IS_ENABLED(CONFIG_ZMK_RGB_UNDERGLOW_ON_START))
         zmk_rgb_underglow_on();

@@ -9,6 +9,11 @@
 #include <zmk/ble.h>
 #include <zmk/endpoints_types.h>
 
+/**
+ * Recommended length of string buffer for printing endpoint identifiers.
+ */
+#define ZMK_ENDPOINT_STR_LEN 10
+
 #ifdef CONFIG_ZMK_USB
 #define ZMK_ENDPOINT_USB_COUNT 1
 #else
@@ -34,6 +39,11 @@ bool zmk_endpoint_instance_equals(struct zmk_endpoint_instance a, struct zmk_end
 
 /**
  * Writes a string identifying an endpoint instance.
+ *
+ * @param str Address of output string buffer
+ * @param len Length of string buffer. See ZMK_ENDPOINT_STR_LEN for recommended length.
+ *
+ * @returns Number of characters written.
  */
 int zmk_endpoint_instance_print(char *str, size_t len, struct zmk_endpoint_instance endpoint);
 

@@ -95,8 +95,11 @@ static ssize_t read_hids_input_report(struct bt_conn *conn, const struct bt_gatt
 static ssize_t write_hids_leds_report(struct bt_conn *conn, const struct bt_gatt_attr *attr,
                                       const void *buf, uint16_t len, uint16_t offset,
                                       uint8_t flags) {
-    if (offset != 0 || len != sizeof(struct zmk_hid_led_report_body)) {
-        return BT_GATT_ERR(BT_ATT_ERR_NOT_SUPPORTED);
+    if (offset != 0) {
+        return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
+    }
+    if (len != sizeof(struct zmk_hid_led_report_body)) {
+        return BT_GATT_ERR(BT_ATT_ERR_INVALID_ATTRIBUTE_LEN);
     }
 
     struct zmk_hid_led_report_body *report = (struct zmk_hid_led_report_body *)buf;
@@ -105,10 +108,10 @@ static ssize_t write_hids_leds_report(struct bt_conn *conn, const struct bt_gatt
         return BT_GATT_ERR(BT_ATT_ERR_UNLIKELY);
     }
 
-    struct zmk_endpoint_instance endpoint = {
-        .transport = ZMK_TRANSPORT_BLE,
-        .ble_profile_index = profile,
-    };
+    struct zmk_endpoint_instance endpoint = {.transport = ZMK_TRANSPORT_BLE,
+                                             .ble = {
+                                                 .profile_index = profile,
+                                             }};
     zmk_hid_indicators_process_report(report, endpoint);
 
     return len;
@@ -165,8 +168,9 @@ BT_GATT_SERVICE_DEFINE(
                        NULL, &input),
 
     BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_REPORT,
-                           BT_GATT_CHRC_WRITE | BT_GATT_CHRC_WRITE_WITHOUT_RESP,
-                           BT_GATT_PERM_WRITE_ENCRYPT, NULL, write_hids_leds_report, NULL),
+                           BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE | BT_GATT_CHRC_WRITE_WITHOUT_RESP,
+                           BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT, NULL,
+                           write_hids_leds_report, NULL),
     BT_GATT_DESCRIPTOR(BT_UUID_HIDS_REPORT_REF, BT_GATT_PERM_READ_ENCRYPT, read_hids_report_ref,
                        NULL, &led_indicators),
 

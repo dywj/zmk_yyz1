@@ -673,6 +673,18 @@ static int zmk_ble_init(const struct device *_arg) {
         }
     }
 
+    // Hardcoding a reasonable hardcoded value of peripheral addresses
+    // to clear so we properly clear a split central as well.
+    for (int i = 0; i < 8; i++) {
+        char setting_name[32];
+        sprintf(setting_name, "ble/peripheral_addresses/%d", i);
+
+        err = settings_delete(setting_name);
+        if (err) {
+            LOG_ERR("Failed to delete setting: %d", err);
+        }
+    }
+
 #endif // IS_ENABLED(CONFIG_ZMK_BLE_CLEAR_BONDS_ON_START)
 
     bt_conn_cb_register(&conn_callbacks);
@@ -731,6 +743,23 @@ static int zmk_ble_handle_key_user(struct zmk_keycode_state_changed *event) {
         auth_passkey_entry_conn = NULL;
         return ZMK_EV_EVENT_HANDLED;
     }
+
+    uint8_t val;
+    if (!(zmk_ble_numeric_usage_to_value(key, HID_USAGE_KEY_KEYBOARD_1_AND_EXCLAMATION,
+                                         HID_USAGE_KEY_KEYBOARD_0_AND_RIGHT_PARENTHESIS, &val) ||
+          zmk_ble_numeric_usage_to_value(key, HID_USAGE_KEY_KEYPAD_1_AND_END,
+                                         HID_USAGE_KEY_KEYPAD_0_AND_INSERT, &val))) {
+        LOG_DBG("Key not a number, ignoring");
+        return ZMK_EV_EVENT_BUBBLE;
+    }
+
+    if (ring_buf_space_get(&passkey_entries) <= 0) {
+        uint8_t discard_val;
+        ring_buf_get(&passkey_entries, &discard_val, 1);
+    }
+    ring_buf_put(&passkey_entries, &val, 1);
+    LOG_DBG("value entered: %d, digits collected so far: %d", val,
+            ring_buf_size_get(&passkey_entries));
 
     uint8_t val;
     if (!(zmk_ble_numeric_usage_to_value(key, HID_USAGE_KEY_KEYBOARD_1_AND_EXCLAMATION,

@@ -56,7 +56,7 @@ bool zmk_endpoint_instance_equals(struct zmk_endpoint_instance a, struct zmk_end
         return true;
 
     case ZMK_TRANSPORT_BLE:
-        return a.ble_profile_index == b.ble_profile_index;
+        return a.ble.profile_index == b.ble.profile_index;
     }
 
     LOG_ERR("Invalid transport %d", a.transport);
@@ -69,7 +69,7 @@ int zmk_endpoint_instance_print(char *str, size_t len, struct zmk_endpoint_insta
         return snprintf(str, len, "USB");
 
     case ZMK_TRANSPORT_BLE:
-        return snprintf(str, len, "BLE:%d", endpoint.ble_profile_index);
+        return snprintf(str, len, "BLE:%d", endpoint.ble.profile_index);
 
     default:
         return snprintf(str, len, "Invalid");
@@ -85,7 +85,7 @@ int zmk_endpoint_instance_to_index(struct zmk_endpoint_instance endpoint) {
         return INSTANCE_INDEX_OFFSET_USB;
 
     case ZMK_TRANSPORT_BLE:
-        return INSTANCE_INDEX_OFFSET_BLE + endpoint.ble_profile_index;
+        return INSTANCE_INDEX_OFFSET_BLE + endpoint.ble.profile_index;
     }
 
     LOG_ERR("Invalid transport %d", endpoint.transport);
@@ -260,7 +260,7 @@ static struct zmk_endpoint_instance get_selected_instance(void) {
     switch (instance.transport) {
 #if IS_ENABLED(CONFIG_ZMK_BLE)
     case ZMK_TRANSPORT_BLE:
-        instance.ble_profile_index = zmk_ble_active_profile_index();
+        instance.ble.profile_index = zmk_ble_active_profile_index();
         break;
 #endif // IS_ENABLED(CONFIG_ZMK_BLE)
 
@@ -309,7 +309,7 @@ static void update_current_endpoint(void) {
 
         current_instance = new_instance;
 
-        char endpoint_str[10];
+        char endpoint_str[ZMK_ENDPOINT_STR_LEN];
         zmk_endpoint_instance_print(endpoint_str, sizeof(endpoint_str), current_instance);
         LOG_INF("Endpoint changed: %s", endpoint_str);
 
