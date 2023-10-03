@@ -37,6 +37,11 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <zmk/event_manager.h>
 #include <zmk/events/ble_active_profile_changed.h>
 
+#if IS_ENABLED(CONFIG_ZMK_HANDLE_BLE_DISCONNECTION)
+#include <zmk/activity.h>
+#include <zmk/events/keycode_state_changed.h>
+#endif /* IS_ENABLED(CONFIG_ZMK_HANDLE_BLE_DISCONNECTION) */
+
 #if IS_ENABLED(CONFIG_ZMK_BLE_PASSKEY_ENTRY)
 #include <zmk/events/keycode_state_changed.h>
 
@@ -61,6 +66,10 @@ enum advertising_type {
 
 static struct zmk_ble_profile profiles[ZMK_BLE_PROFILE_COUNT];
 static uint8_t active_profile;
+
+#if IS_ENABLED(CONFIG_ZMK_HANDLE_BLE_DISCONNECTION)
+bool active_profile_seeking_connection = true;
+#endif
 
 #define DEVICE_NAME CONFIG_BT_DEVICE_NAME
 #define DEVICE_NAME_LEN (sizeof(DEVICE_NAME) - 1)
@@ -96,6 +105,10 @@ K_WORK_DEFINE(raise_profile_changed_event_work, raise_profile_changed_event_call
 bool zmk_ble_active_profile_is_open() {
     return !bt_addr_le_cmp(&profiles[active_profile].peer, BT_ADDR_LE_ANY);
 }
+
+#if IS_ENABLED(CONFIG_ZMK_HANDLE_BLE_DISCONNECTION)
+bool ble_seeking_connection() { return active_profile_seeking_connection; }
+#endif
 
 void set_profile_address(uint8_t index, const bt_addr_le_t *addr) {
     char setting_name[15];
@@ -167,15 +180,23 @@ int update_advertising() {
 
     if (zmk_ble_active_profile_is_open()) {
         desired_adv = ZMK_ADV_CONN;
-    } else if (!zmk_ble_active_profile_is_connected()) {
-        desired_adv = ZMK_ADV_CONN;
-        // Need to fix directed advertising for privacy centrals. See
-        // https://github.com/zephyrproject-rtos/zephyr/pull/14984 char
-        // addr_str[BT_ADDR_LE_STR_LEN]; bt_addr_le_to_str(zmk_ble_active_profile_addr(), addr_str,
-        // sizeof(addr_str));
+    } else {
+#if IS_ENABLED(CONFIG_ZMK_HANDLE_BLE_DISCONNECTION)
+        if (!zmk_ble_active_profile_is_connected() && active_profile_seeking_connection) {
+            desired_adv = ZMK_ADV_CONN;
+        }
+#else
+        if (!zmk_ble_active_profile_is_connected()) {
+            desired_adv = ZMK_ADV_CONN;
+            // Need to fix directed advertising for privacy centrals. See
+            // https://github.com/zephyrproject-rtos/zephyr/pull/14984 char
+            // addr_str[BT_ADDR_LE_STR_LEN]; bt_addr_le_to_str(zmk_ble_active_profile_addr(),
+            // addr_str, sizeof(addr_str));
 
-        // LOG_DBG("Directed advertising to %s", addr_str);
-        // desired_adv = ZMK_ADV_DIR;
+            // LOG_DBG("Directed advertising to %s", addr_str);
+            // desired_adv = ZMK_ADV_DIR;
+        }
+#endif /* IS_ENABLED(CONFIG_ZMK_HANDLE_BLE_DISCONNECTION) */
     }
     LOG_DBG("advertising from %d to %d", advertising_status, desired_adv);
 
@@ -262,6 +283,9 @@ int zmk_ble_prof_select(uint8_t index) {
     active_profile = index;
     ble_save_profile();
 
+#if IS_ENABLED(CONFIG_ZMK_HANDLE_BLE_DISCONNECTION)
+    active_profile_seeking_connection = true;
+#endif
     update_advertising();
 
     raise_profile_changed_event();
@@ -431,6 +455,9 @@ static void connected(struct bt_conn *conn, uint8_t err) {
     update_advertising();
 
     if (is_conn_active_profile(conn)) {
+#if IS_ENABLED(CONFIG_ZMK_HANDLE_BLE_DISCONNECTION)
+        active_profile_seeking_connection = false;
+#endif
         LOG_DBG("Active profile connected");
         k_work_submit(&raise_profile_changed_event_work);
     }
@@ -736,5 +763,19 @@ static int zmk_ble_listener(const zmk_event_t *eh) {
 ZMK_LISTENER(zmk_ble, zmk_ble_listener);
 ZMK_SUBSCRIPTION(zmk_ble, zmk_keycode_state_changed);
 #endif /* IS_ENABLED(CONFIG_ZMK_BLE_PASSKEY_ENTRY) */
+
+#if IS_ENABLED(CONFIG_ZMK_HANDLE_BLE_DISCONNECTION)
+/* Restart BLE advertsing after user key press */
+static int ble_keypress_listener(const zmk_event_t *eh) {
+    if (as_zmk_keycode_state_changed(eh) != NULL && !active_profile_seeking_connection &&
+        !zmk_ble_active_profile_is_connected()) {
+        active_profile_seeking_connection = true;
+        k_work_submit(&update_advertising_work);
+    }
+    return 0;
+}
+ZMK_LISTENER(ble_keypress, ble_keypress_listener);
+ZMK_SUBSCRIPTION(ble_keypress, zmk_keycode_state_changed);
+#endif /* IS_ENABLED(CONFIG_ZMK_HANDLE_BLE_DISCONNECTION) */
 
 SYS_INIT(zmk_ble_init, APPLICATION, CONFIG_ZMK_BLE_INIT_PRIORITY);
