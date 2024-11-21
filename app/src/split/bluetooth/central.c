@@ -901,12 +901,15 @@ void split_central_split_led_callback(struct k_work *work) {
     while (k_msgq_get(&zmk_split_central_split_led_msgq, &payload, K_NO_WAIT) == 0) {
         if (peripherals[0].state != PERIPHERAL_SLOT_STATE_CONNECTED) {
             LOG_ERR("Source not connected");
-            continue;
+            return;
         }
 
         if (!peripherals[0].update_led_handle) {
             LOG_ERR("handle not discovered");
-            continue;
+            return;
+        }
+        if (bt_conn_get_security(peripherals[0].conn) < BT_SECURITY_L2) {
+            return;
         }
 
         int err = bt_gatt_write_without_response(peripherals[0].conn,
@@ -967,14 +970,16 @@ void split_central_split_bl_callback(struct k_work *work) {
     while (k_msgq_get(&zmk_split_central_split_bl_msgq, &payload, K_NO_WAIT) == 0) {
         if (peripherals[0].state != PERIPHERAL_SLOT_STATE_CONNECTED) {
             LOG_ERR("Source not connected");
-            continue;
+            return;
         }
 
         if (!peripherals[0].update_bl_handle) {
             LOG_ERR("handle not discovered");
-            continue;
+            return;
         }
-
+        if (bt_conn_get_security(peripherals[0].conn) < BT_SECURITY_L2) {
+            return;
+        }
         int err =
             bt_gatt_write_without_response(peripherals[0].conn, peripherals[0].update_bl_handle,
                                            &payload, sizeof(struct zmk_split_update_bl_data), true);
