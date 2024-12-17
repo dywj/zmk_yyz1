@@ -29,6 +29,7 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <zmk/events/position_state_changed.h>
 #include <zmk/events/sensor_event.h>
 #include <zmk/events/battery_state_changed.h>
+#include <zmk/events/split_peripheral_status_changed.h>
 #include <zmk/pointing/input_split.h>
 #include <zmk/hid_indicators_types.h>
 #include <zmk/physical_layouts.h>
@@ -965,6 +966,8 @@ static void split_central_connected(struct bt_conn *conn, uint8_t conn_err) {
 
     confirm_peripheral_slot_conn(conn);
     split_central_process_connection(conn);
+    raise_zmk_split_peripheral_status_changed((struct zmk_split_peripheral_status_changed){
+        .connected = true, .slot = peripheral_slot_index_for_conn(conn)});
 }
 
 static void split_central_disconnected(struct bt_conn *conn, uint8_t reason) {
@@ -981,6 +984,9 @@ static void split_central_disconnected(struct bt_conn *conn, uint8_t reason) {
     k_msgq_put(&peripheral_batt_lvl_msgq, &ev, K_NO_WAIT);
     k_work_submit(&peripheral_batt_lvl_work);
 #endif // IS_ENABLED(CONFIG_ZMK_SPLIT_BLE_CENTRAL_BATTERY_LEVEL_FETCHING)
+
+    raise_zmk_split_peripheral_status_changed((struct zmk_split_peripheral_status_changed){
+        .connected = false, .slot = peripheral_slot_index_for_conn(conn)});
 
 #if IS_ENABLED(CONFIG_ZMK_INPUT_SPLIT)
     release_peripheral_input_subs(conn);

@@ -11,6 +11,7 @@
 
 struct zmk_split_peripheral_status_changed {
     bool connected;
+    uint8_t slot;
 };
 
 ZMK_EVENT_DECLARE(zmk_split_peripheral_status_changed);
